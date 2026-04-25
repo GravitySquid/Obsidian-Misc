@@ -59,7 +59,7 @@ if (pages.length === 0) {
     });
 
     // 3. Extract Data
-    const labels = pages.map(p => p.date.toFormat("MMM d, yyyy"));
+    const labels = pages.map(p => p.date.toFormat("MMM d"));
     const values = pages.map(p => parseFloat(p[CONFIG.PROPERTY_NAME]));
     //console.log("Final sorted data for chart:");
     //pages.forEach((p, i) => {
@@ -78,7 +78,8 @@ if (pages.length === 0) {
     const canvas = dv.el("canvas", "", {
         style: { 
             width: "100%", 
-            height: "100%" 
+            height: "auto",
+            aspectRatio: "16 / 9" // Maintain aspect ratio
         }
     });
     container.appendChild(canvas);
@@ -86,14 +87,15 @@ if (pages.length === 0) {
     // 5. Draw the Chart
     setTimeout(() => {
 	    // Use explicit dimensions instead of offsetHeight
-	    const width = 800;
-	    const height = 500;
+	    const width = 900;
+	    const height = 450;
 	    canvas.width = width;    // drawing resolution
 	    canvas.height = height;
     
 	    // Remove conflicting CSS dimensions, or make them match
-	    canvas.style.width = width + "px";
-	    canvas.style.height = height + "px";
+	    canvas.style.width = "max-content" //width + "px";
+	    canvas.style.height = "max-content" //height + "px";
+	    canvas.style.maxWidth = "100%"; // Allow scaling down on smaller screens
     
 	    const ctx = canvas.getContext("2d");
 	    const padding = 50;
