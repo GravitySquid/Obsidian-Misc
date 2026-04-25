@@ -3,17 +3,39 @@
 // Generic Time-Series Chart for Obsidian Daily Notes
 // Use Dataview community plugin & enable javascript
 //
-// ===== CONFIGURATION =====
-const PROPERTY_NAME = "weight";        // Change to "bloodPressure", "mood", etc.
-const UNIT = "kg";                     // e.g., "kg", "lbs", "mmHg", "score"
-const CHART_TITLE = "Weight Tracker";  // Optional chart title
-// ===== END CONFIGURATION =====
+// ===== CONFIGURATION DEFAULTS =====
+// All values will be read from current page properties. Set defaults below if properties are missing.
+const DEFAULTS = {
+    PROPERTY_NAME: "weight",           // Page property containing data values
+    UNIT: "kg",                        // Unit of measurement
+    CHART_TITLE: "Chart",              // Chart title
+    GOAL_SHOW:  false,
+    GOAL_VALUE: "goalValue",        // Property name to read goal from
+    GOAL_COLOR: "#ef4444",             // Goal line colour (red by default)
+};
+// ===== END CONFIGURATION DEFAULTS =====
+
+// Helper: Read configuration from current page properties with defaults
+const currentFile = dv.current();
+//console.info(`chartData ${currentFile?.chartData}`);
+//console.info(`chartUnit ${currentFile?.chartUnit}`);
+//console.info(`goalValue ${currentFile?.goalValue}`);
+
+const CONFIG = {
+    PROPERTY_NAME: (currentFile?.chartData || DEFAULTS.PROPERTY_NAME).toString(),
+    UNIT: (currentFile?.chartUnit || DEFAULTS.UNIT).toString(),
+    CHART_TITLE: (currentFile?.chartTitle || DEFAULTS.CHART_TITLE).toString(),
+    GOAL_SHOW: (currentFile?.goalShow || DEFAULTS.GOAL_SHOW).toString(),
+    GOAL_VALUE: (currentFile?.goalValue || DEFAULTS.GOAL_VALUE).toString(),
+    GOAL_COLOR: (currentFile?.goalColor || DEFAULTS.GOAL_COLOR).toString(),
+};
+
 
 // 1. Fetch and Filter Data
-let pages = dv.pages().where(p => p[PROPERTY_NAME] && p.date).array();  // Convert to real array
+let pages = dv.pages().where(p => p[CONFIG.PROPERTY_NAME] && p.date).array();  // Convert to real array
 
 if (pages.length === 0) {
-    dv.paragraph("*No weight data found. Ensure your daily notes have 'date' and 'weight' in the frontmatter.*");
+    dv.paragraph(`*No data found for property '${CONFIG.PROPERTY_NAME}'. Ensure your daily notes have 'date' and '${CONFIG.PROPERTY_NAME}' in the frontmatter.*`);
 } else {
     // 2. ROBUST SORTING
     pages.sort((a, b) => {
@@ -32,22 +54,22 @@ if (pages.length === 0) {
             dateB = 0;
             console.error(`Failed to parse date for ${b.file?.name}: ${b.date}`, e);
         }
-        console.log(`Sorting: ${a.file?.name || 'unknown'} (${a.date}) = ${dateA}, ${b.file?.name || 'unknown'} (${b.date}) = ${dateB}, result: ${dateA - dateB}`);
+        //console.log(`Sorting: ${a.file?.name || 'unknown'} (${a.date}) = ${dateA}, ${b.file?.name || 'unknown'} (${b.date}) = ${dateB}, result: ${dateA - dateB}`);
         return dateA - dateB;
     });
 
     // 3. Extract Data
     const labels = pages.map(p => p.date.toFormat("MMM d, yyyy"));
-    const values = pages.map(p => parseFloat(p[PROPERTY_NAME]));
-    console.log("Final sorted data for chart:");
-    pages.forEach((p, i) => {
-        console.log(`  [${i}] ${labels[i]} = ${values[i]} ${UNIT}`);
-    });
+    const values = pages.map(p => parseFloat(p[CONFIG.PROPERTY_NAME]));
+    //console.log("Final sorted data for chart:");
+    //pages.forEach((p, i) => {
+    //   console.log(`  [${i}] ${labels[i]} = ${values[i]} ${CONFIG.UNIT}`);
+    //});
 
     // 4. Create Canvas Element
     const container = dv.el("div");
-    container.style.width = "80%";
-    container.style.height = "80%";
+    container.style.width = "100%";
+    container.style.height = "100%";
     container.style.position = "relative";
 
     // Optional: Add a border to see the bounds clearly while editing
@@ -76,8 +98,10 @@ if (pages.length === 0) {
 	    const ctx = canvas.getContext("2d");
 	    const padding = 50;
     
-        const minVal = Math.min(...values);
-        const maxVal = Math.max(...values);
+        let minVal = Math.min(...values);
+        if (CONFIG.GOAL_SHOW && CONFIG.GOAL_VALUE < minVal) { minVal = CONFIG.GOAL_VALUE; }
+        let maxVal = Math.max(...values);
+        if (CONFIG.GOAL_SHOW && CONFIG.GOAL_VALUE > maxVal) { maxVal = CONFIG.GOAL_VALUE; }
         const range = maxVal - minVal || 1;
 
         // Helper: Map value to Y coordinate
@@ -116,9 +140,28 @@ if (pages.length === 0) {
             ctx.stroke();
 
             // Draw Label (e.g., "80 kg")
-            ctx.fillText(val.toFixed(1) + " " + UNIT, padding - 5, y);
+            ctx.fillText(val.toFixed(1) + " " + CONFIG.UNIT, padding - 5, y);
         }
         ctx.setLineDash([]);
+
+        // --- DRAW GOAL LINE (if goal property true) ---
+        if (CONFIG.GOAL_SHOW) {
+            const goalY = getY(CONFIG.GOAL_VALUE);
+            ctx.strokeStyle = CONFIG.GOAL_COLOR;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([8, 4]);
+            ctx.beginPath();
+            ctx.moveTo(padding, goalY);
+            ctx.lineTo(width - padding, goalY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw goal label
+            ctx.fillStyle = CONFIG.GOAL_COLOR;
+            ctx.font = "bold 12px sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText("Goal: " + CONFIG.GOAL_VALUE + " " + CONFIG.UNIT, padding + 10, goalY - 10);
+        }
 
         // --- DRAW AREA UNDER LINE ---
         if (values.length > 1) {
@@ -167,7 +210,7 @@ if (pages.length === 0) {
             ctx.fillStyle = "#666";
             ctx.font = "11px sans-serif";
             ctx.textAlign = "center";
-            ctx.fillText(labels[i], x, height - padding + 30);
+            ctx.fillText(labels[i], x, height - 5);
             ctx.fillStyle = "#ffffff"; // Reset for next point
         });
 
