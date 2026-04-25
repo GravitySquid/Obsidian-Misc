@@ -1,5 +1,7 @@
 //```dataviewjs
+//
 // Generic Time-Series Chart for Obsidian Daily Notes
+// Use Dataview community plugin & enable javascript
 //
 // ===== CONFIGURATION =====
 const PROPERTY_NAME = "weight";        // Change to "bloodPressure", "mood", etc.
